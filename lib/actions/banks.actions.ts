@@ -182,4 +182,4 @@ export const getTransactions = async ({
   } catch (error) {
     console.error("An error occurred while getting the accounts:", error);
   }
-}
+};

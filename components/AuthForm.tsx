@@ -1,11 +1,12 @@
 'use client';
-import React from 'react'
-import Link from 'next/link'
+
 import Image from 'next/image'
-import { useState } from 'react'
+import Link from 'next/link'
+import React, { useState } from 'react'
+
+import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -16,98 +17,107 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import CustomInput from './CustomInput';
 import { Input } from "@/components/ui/input"
-import { authFormSchema} from '@/lib/utils';
+import CustomInput from './CustomInput';
+import { authFormSchema } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { getLoggedInUser, signIn,signUp } from '@/lib/actions/user.actions';
+import { getLoggedInUser, signIn, signUp } from '@/lib/actions/user.actions';
 import PlaidLink from './PlaidLink';
-const AuthForm = ({type}:{type:string}) => {
+
+const AuthForm = ({ type }: { type: string }) => {
   const router = useRouter();
-    const [user,setuser] = useState(null);
-    const [isLoading,setisLoading] = useState(false); 
-    const formSchema = authFormSchema(type);
-  // 1. Define your form.
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password:""
-    },
-  })
- 
-  // 2. Define a submit handler.
-  const onSubmit = async (data: z.infer<typeof formSchema>)=>{
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    setisLoading(true);
-    try{
-      if(type==='sign-up'){
-        const userData = {
-          firstName: data.firstName!,
-          lastName: data.lastName!,
-          address1: data.address1!,
-          city: data.city!,
-          state: data.state!,
-          postalCode: data.postalCode!,
-          dateOfBirth: data.dateOfBirth!,
-          ssn: data.ssn!,
-          email: data.email!,
-          password: data.password!
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const formSchema = authFormSchema(type);
+
+    // 1. Define your form.
+    const form = useForm<z.infer<typeof formSchema>>({
+      resolver: zodResolver(formSchema),
+      defaultValues: {
+        email: "",
+        password: ''
+      },
+    })
+   
+    // 2. Define a submit handler.
+    const onSubmit = async (data: z.infer<typeof formSchema>) => {
+      setIsLoading(true);
+
+      try {
+        // Sign up with Appwrite & create plaid token
+        
+        if(type === 'sign-up') {
+          const userData = {
+            firstName: data.firstName!,
+            lastName: data.lastName!,
+            address1: data.address1!,
+            city: data.city!,
+            state: data.state!,
+            postalCode: data.postalCode!,
+            dateOfBirth: data.dateOfBirth!,
+            ssn: data.ssn!,
+            email: data.email,
+            password: data.password
+          }
+
+          const newUser = await signUp(userData);
+
+          setUser(newUser);
         }
-        const newUser = await signUp(userData);
 
-        setuser(newUser);
+        if(type === 'sign-in') {
+          const response = await signIn({
+            email: data.email,
+            password: data.password,
+          })
+
+          if(response) router.push('/')
+        }
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setIsLoading(false);
       }
-      if(type === 'sign-in') {
-        const response = await signIn({
-          email: data.email,
-          password: data.password,
-        })
-
-        if(response) router.push('/')
-
-      }
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setisLoading(false);
     }
-  }
+
   return (
-    <section className='auth-form'>
-      <header className='flex flex-col gap-5 md:gap-7'>
-        <Link href = '/' className='flex cursor-pointer items-center gap-1'>
-                <Image
-                    src = '/icons/logo.svg'
-                    width={34}
-                    height={34}
-                    alt = 'Horizon Logo'
-                />
-                <h1 className='tex-26 font-ibm-plex-serif font-bold text-black-1'>Horizon</h1>
-        </Link>
-        <div className='flex flex-col gap-1 md:gap-3'>
-            <h1 className='text-24 lg:text-36 font-semibold text-gray-900'>
-                {user ? 'Link Account' : type==='sign-in'
-                    ? 'Sign In'
-                    : 'Sign Up'
+    <section className="auth-form">
+      <header className='flex flex-col gap-5 md:gap-8'>
+          <Link href="/" className="cursor-pointer flex items-center gap-1">
+            <Image 
+              src="/icons/logo.svg"
+              width={34}
+              height={34}
+              alt="Horizon logo"
+            />
+            <h1 className="text-26 font-ibm-plex-serif font-bold text-black-1">Horizon</h1>
+          </Link>
+
+          <div className="flex flex-col gap-1 md:gap-3">
+            <h1 className="text-24 lg:text-36 font-semibold text-gray-900">
+              {user 
+                ? 'Link Account'
+                : type === 'sign-in'
+                  ? 'Sign In'
+                  : 'Sign Up'
+              }
+              <p className="text-16 font-normal text-gray-600">
+                {user 
+                  ? 'Link your account to get started'
+                  : 'Please enter your details'
                 }
-                <p className='text-16 font-normal text-gray-600'>
-                    {user
-                        ? 'Link your account to get started'
-                        : 'Please enter your details'
-                    }
-                </p>
+              </p>  
             </h1>
-        </div>
+          </div>
       </header>
       {user ? (
-        <div className='flex flex-col gap-4'>
-            <PlaidLink user={user} variant='primary'/>
+        <div className="flex flex-col gap-4">
+          <PlaidLink user={user} variant="primary" />
         </div>
-      ) :(
-      <>
+      ): (
+        <>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               {type === 'sign-up' && (
@@ -146,6 +156,7 @@ const AuthForm = ({type}:{type:string}) => {
               </div>
             </form>
           </Form>
+
           <footer className="flex justify-center gap-1">
             <p className="text-14 font-normal text-gray-600">
               {type === 'sign-in'
@@ -156,7 +167,7 @@ const AuthForm = ({type}:{type:string}) => {
               {type === 'sign-in' ? 'Sign up' : 'Sign in'}
             </Link>
           </footer>
-      </>
+        </>
       )}
     </section>
   )
